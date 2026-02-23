@@ -8,12 +8,13 @@
 
 struct TexLoadTmp
 {
-    TexLoadTmp() : loadmode(TextureMgr::KEEP), curTex(NULL), success(false), arrayidx(0) { img.pixels = NULL; }
+    TexLoadTmp() : loadmode(TextureMgr::KEEP), curTex(NULL), success(false), fileFound(false), arrayidx(0) { img.pixels = NULL; }
     std::string name, filename;
     ImageData img;
     TextureMgr::LoadMode loadmode;
     Texture *curTex; // immutable
     bool success; // if this is true and img.pixels is NULL, don't change anything
+    bool fileFound;
     //bool mipmap;
     size_t arrayidx;
 };
@@ -121,6 +122,7 @@ static bool locateAndLoad(TexLoadTmp& tt, const std::string& basedir)
         tt.name = ldr.name;
     if(ldr.loader)
     {
+        tt.fileFound = true;
         if(tt.loadmode < TextureMgr::OVERWRITE && tt.curTex && tt.curTex->success && tt.curTex->filename == ldr.fn)
         {
             // still referring to the same file that was already loaded, so we wouldn't gain anything from loading it again
@@ -131,7 +133,7 @@ static bool locateAndLoad(TexLoadTmp& tt, const std::string& basedir)
         tt.filename = ldr.fn;
         tt.img = ldr.load();
         tt.success = !!tt.img.pixels;
-        return true;
+        return tt.success;
     }
     return false;
 }
@@ -139,8 +141,11 @@ static bool locateAndLoad(TexLoadTmp& tt, const std::string& basedir)
 void TextureMgr::th_loadFromFile(TexLoadTmp& tt) const
 {
     if(isSpecialPath(tt.name))
-        if(locateAndLoad(tt, ""))
+    {
+        locateAndLoad(tt, "");
+        if(tt.fileFound)
             return;
+    }
 
     for(size_t i = 0; i < loadFromPaths.size(); ++i)
         if(locateAndLoad(tt, loadFromPaths[i]))
@@ -359,5 +364,4 @@ void TextureMgr::reloadAll(LoadMode mode)
     if(!todo.empty())
         loadBatch(NULL, &todo[0],todo.size(), mode);
 }
-
 
